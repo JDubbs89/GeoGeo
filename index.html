@@ -5,16 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Web Page</title>
     <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script type="importmap">
+		{"imports": {"leaflet": "https://cdn.jsdelivr.net/npm/leaflet@2.0.0-beta.4/dist/leaflet.js"}}
+	</script>
 </head>
-<body>
-    <header>
-        <h1 class="title">Welcome to My Web Page</h1>
-    </header>
-    <nav>
-        <ul>
-            <li><a href="#section1">Section 1</a></li>
-            <li><a href="#section2">Section 2</a></li>
-            <li><a href="#section3">Section 3</a></li>
-        </ul>
-    </nav>
+<body class="display">
+    <div id="map" class="map">
+        <script type="module" src="js/map.js"></script>
+    </div>
+    <div class="sidebar">
+        <h2>Sidebar Content</h2>
+        <p>This is some content in the sidebar.</p>
+    </div>
 </body>
