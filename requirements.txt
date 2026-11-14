@@ -1,4 +1,2 @@
 starlette==1.10.0
 uvicorn==0.54.0
-
-# jsdap is a JavaScript dependency managed in package.json with npm.
