@@ -1,0 +1,25 @@
+{
+    "Data": [
+        {
+            "coords": {"lat": 51.505,
+            "lng": -0.09},
+            "C02Level": 400,
+            "Altitude": 100,
+            "CH4Level": 20
+        },
+        {
+            "coords": {"lat": 51.515,
+            "lng": -0.1},
+            "C02Level": 420,
+            "Altitude": 120,
+            "CH4Level": 25
+        },
+        {
+            "coords": {"lat": 51.525,
+            "lng": -0.11},
+            "C02Level": 430,
+            "Altitude": 130,
+            "CH4Level": 30
+        }
+    ]
+}
