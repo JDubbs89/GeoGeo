@@ -1,0 +1,8 @@
+{
+  "name": "geogeo",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "jsdap": "8.1.0"
+  }
+}
