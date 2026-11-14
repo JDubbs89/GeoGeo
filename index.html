@@ -9,6 +9,7 @@
     <script type="importmap">
 		{"imports": {"leaflet": "https://cdn.jsdelivr.net/npm/leaflet@2.0.0-beta.4/dist/leaflet.js"}}
 	</script>
+    <script type="module" src="js/data.js"></script>
 </head>
 <body class="display">
     <div id="map" class="map">
@@ -16,7 +17,7 @@
     </div>
     <div class="sidebar">
         <h2>Sidebar Content</h2>
-        <p>This is some content in the sidebar.</p>
+        <p id="data-status" role="status">Loading CO₂ data…</p>
         <div class="sliders">
             <input type="range" min="1" max="100" value="50" class="slider" id="myRange">
             <input type="range" min="1" max="100" value="50" class="slider" id="myRange">

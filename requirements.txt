@@ -1,2 +1,5 @@
 starlette==1.10.0
 uvicorn==0.54.0
+pydap==3.5.11
+python-dotenv==1.2.4
+requests==2.34.2
