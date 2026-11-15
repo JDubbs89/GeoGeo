@@ -5,15 +5,20 @@ import {queryPoints} from './data.js';
 
 const formatReading = (value) => Number.isFinite(value) ? value.toLocaleString(undefined, {maximumSignificantDigits: 4}) : 'No reading';
 
-const map = new LeafletMap('map').setView([20, 0], 2);
+const guessing = document.getElementById('map').hasAttribute('data-guess-map');
+
+export const map = new LeafletMap('map').setView([20, 0], 2);
 new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 const pollutantLayers = Object.fromEntries(POLLUTANTS.map((pollutant, index) => [pollutant.id, new GeoJSON(null, {
+    // Pass clicks through pollutant shapes when choosing a game location.
+    interactive: !guessing,
     style: feature => ({color: pollutantColor(pollutant, feature.properties[`${pollutant.id}_rank`]),
         weight: 1, fillOpacity: 0.3}),
-    pointToLayer: (feature, latlng) => new CircleMarker(latlng, {radius: 8 - index * 2}),
+    pointToLayer: (feature, latlng) => new CircleMarker(latlng, {radius: 8 - index * 2, interactive: !guessing}),
     onEachFeature: (feature, item) => {
+        if (guessing) return;
         const p = feature.properties;
         const title = p.pointCount === 1 ? 'Location readings' : 'Area averages';
         item.bindPopup(`<p class="tooltip"><strong>${title}</strong><br>` +
@@ -50,6 +55,42 @@ function initializeControls() {
 
     let updating = false;
     let fitted = false;
+    let currentShapes = null;
+    let renderedWorlds = '';
+
+    // Tiles repeat every 360 degrees; GeoJSON needs its own shifted copies.
+    function shiftCoordinates(coordinates, offset) {
+        if (typeof coordinates[0] === 'number') {
+            return [coordinates[0] + offset, ...coordinates.slice(1)];
+        }
+        return coordinates.map(part => shiftCoordinates(part, offset));
+    }
+
+    function renderWorldCopies() {
+        if (!currentShapes) return;
+        const bounds = map.getBounds();
+        const firstWorld = Math.floor((bounds.getWest() + 180) / 360);
+        const lastWorld = Math.floor((bounds.getEast() + 180) / 360);
+        const worlds = `${firstWorld},${lastWorld}`;
+        if (worlds === renderedWorlds) return;
+        renderedWorlds = worlds;
+
+        for (const pollutant of POLLUTANTS) {
+            const layer = pollutantLayers[pollutant.id];
+            layer.clearLayers();
+            for (let world = firstWorld; world <= lastWorld; world++) {
+                const collection = currentShapes[pollutant.id];
+                layer.addData({...collection, features: collection.features.map(feature => ({
+                    ...feature,
+                    geometry: {...feature.geometry,
+                        coordinates: shiftCoordinates(feature.geometry.coordinates, world * 360)},
+                }))});
+            }
+        }
+    }
+
+    // Reuse the generated shapes when panning instead of querying or clustering again.
+    map.on('moveend', renderWorldCopies);
 
     async function update() {
     if (updating) return;
@@ -59,6 +100,8 @@ function initializeControls() {
     const n02Value = n02Slider.value;
     try {
         const result = await queryPoints(c02Value + ',' + ch4Value + ',' + n02Value);
+        currentShapes = null;
+        renderedWorlds = '';
         for (const layer of Object.values(pollutantLayers)) layer.clearLayers();
         if (!result.total) {
             output.textContent = 'No pollutant measurements are available. Import the data.';
@@ -85,6 +128,9 @@ function initializeControls() {
             map.fitBounds(bounds, {maxZoom: 5});
             fitted = true;
         }
+        // Fit the original data first so repeated copies do not widen the initial view.
+        currentShapes = shapes;
+        renderWorldCopies();
     } catch (error) {
         output.textContent = `Unable to update the map: ${error.message}`;
         console.error('Unable to update the map:', error);

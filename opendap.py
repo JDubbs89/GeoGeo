@@ -38,7 +38,7 @@ def values(variable, selection):
     return np.ma.masked_invalid(data).filled(np.nan)
 
 
-def fetch_source(url, variable_name, max_points=10000, ppm=False):
+def fetch_source(url, variable_name, max_points=5000, ppm=False):
     parts = urlsplit(url)
     if parts.scheme != 'https' or parts.username or parts.password:
         raise ValueError('Use an HTTPS OPeNDAP URL without embedded credentials')

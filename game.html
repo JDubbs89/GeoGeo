@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>♪GeoGeo♪</title>
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/tone"></script>
+    <script defer src="js/music.js"></script>
+    <script type="importmap">
+        {"imports": {
+            "leaflet": "https://cdn.jsdelivr.net/npm/leaflet@2.0.0-beta.4/dist/leaflet.js",
+            "density-clustering": "https://esm.sh/density-clustering@1.3.0",
+            "concaveman": "https://esm.sh/concaveman@2.0.0"
+        }}
+	</script>
+    <script type="module" src="js/game.js"></script>
+</head>
+<body class="display">
+    <div id="left-area" class="left-area">
+        <div id="playSound" class="playSound">
+            <button type="button" id="playGoalButton" class="playButton" aria-label="Play goal sound" title="Play goal sound" disabled>▶</button>
+            <progress id="playProgress" class="playProgress" max="3000" value="0" aria-label="Audio playback progress"></progress>
+        </div>
+        <div id="map" class="map" data-guess-map>
+            <script type="module" src="js/map.js?v=7"></script>
+        </div>
+    </div>
+    <div class="sidebar">
+        <h2>What does the Climate Sound Like?</h2>
+        <button type="button" id="start-game" disabled>Replay</button>
+        <button type="button" id="submit-guess" disabled>Submit guess</button>
+        <p id="game-status" role="status">Loading a new round…</p>
+        <section id="game-results" class="game-results" role="status" aria-atomic="true" aria-labelledby="results-title" hidden>
+            <h3 id="results-title">Round results</h3>
+            <dl>
+                <dt>Total score</dt>
+                <dd><span id="result-total-score" data-result-value></span> / <span id="result-total-max" data-result-value></span> points</dd>
+                <dt>Slider score</dt>
+                <dd><span id="result-slider-score" data-result-value></span> / <span id="result-slider-max" data-result-value></span> points</dd>
+                <dt>Location score</dt>
+                <dd><span id="result-location-score" data-result-value></span> / <span id="result-location-max" data-result-value></span> points</dd>
+                <dt>Distance from target</dt>
+                <dd><span id="result-distance" data-result-value></span> km</dd>
+                <dt>Target latitude</dt>
+                <dd><span id="result-latitude" data-result-value></span>°</dd>
+                <dt>Target longitude</dt>
+                <dd><span id="result-longitude" data-result-value></span>°</dd>
+            </dl>
+            <table>
+                <caption>Slider details</caption>
+                <thead>
+                    <tr><th scope="col">Pollutant</th><th scope="col">Your guess</th><th scope="col">Target</th><th scope="col">Error</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th scope="row">CO₂</th>
+                        <td id="result-c02-guess" data-result-value></td>
+                        <td id="result-c02-target" data-result-value></td>
+                        <td id="result-c02-error" data-result-value></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">CH₄</th>
+                        <td id="result-ch4-guess" data-result-value></td>
+                        <td id="result-ch4-target" data-result-value></td>
+                        <td id="result-ch4-error" data-result-value></td>
+                    </tr>
+                    <tr>
+                        <th scope="row">NO₂</th>
+                        <td id="result-n02-guess" data-result-value></td>
+                        <td id="result-n02-target" data-result-value></td>
+                        <td id="result-n02-error" data-result-value></td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>Click Replay to play again.</p>
+        </section>
+        <!-- <p id="data-status" role="status">Loading matching coordinates…</p> -->
+        <button type="button" id="show-all-layers">Show all pollutants</button>
+        <p>CH₄ percentiles compare positive emissions. Zero-emission locations appear when the band includes 0.</p>
+        <div class="sliders">
+            <label for="c02-threshold">CO2 Emissions</label>
+            <div>
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="threshold-value">
+            </div>
+            <label for="ch4-threshold">CH4 Emissions</label>
+            <div>
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="threshold-value">
+            </div>
+            <label for="n02-threshold">N2O Emissions</label>
+            <div>
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="threshold-value">
+            </div>
+            <output id="threshold-value" for="c02-threshold ch4-threshold n02-threshold"></output>
+        </div>
+        <button type="button" id="play_button" class="playButton" aria-label="Play slider sound" title="Play slider sound" disabled>▶</button>
+        <p id="audio-status" role="status" hidden></p>
+    </div>
+</body>
+</html>

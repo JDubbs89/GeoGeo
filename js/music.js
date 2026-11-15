@@ -110,47 +110,49 @@ async function playAirSound(data) {
   await Tone.start();
   const norm = normalize(data);
   const BASE = 220;
+  const FACTOR = 2;
 
   // --- Build graph ---
   const sineOsc  = new Tone.Oscillator(BASE, "sine");
+  const doubleOsc = new Tone.Oscillator(BASE * FACTOR, "sawtooth");
+  const doubleGain = new Tone.Gain(0);
   const sawOsc   = new Tone.Oscillator(BASE, "sawtooth");
   const crossfade = new Tone.CrossFade(0);
-
-  const wobbleOsc  = new Tone.Oscillator(BASE, "sine");
-  const wobbleGain = new Tone.Gain(0);
+  
+  //const wobbleOsc  = new Tone.Oscillator(BASE, "sine");
+  //const wobbleGain = new Tone.Gain(0);
 
   const noise       = new Tone.Noise("white");
   const noiseFilter = new Tone.Filter(800, "lowpass");
   const noiseGain   = new Tone.Gain(0);
-
+  
   const overall = (norm.ch4 + norm.co2 + norm.no2) / 3;
   const tremolo = new Tone.Tremolo({
-    frequency: 1 + overall * 3,
-    depth: 0.15 + overall * 0.2,
-  });
-
-  // Wire: oscillators → crossfade → tremolo → out; noise → filter → gain → out
-  sineOsc.connect(crossfade.a);
-  sawOsc.connect(crossfade.b);
-  wobbleOsc.connect(wobbleGain);
-  wobbleGain.connect(crossfade.a);
-  crossfade.connect(tremolo);
-  tremolo.toDestination();
-  noise.connect(noiseFilter);
-  noiseFilter.connect(noiseGain);
-  noiseGain.toDestination();
-
+      frequency: 1 + overall * 3,
+      depth: 0.15 + overall * 0.2,
+    });
+    
+    // Wire: oscillators → crossfade → tremolo → out; noise → filter → gain → out
+    sineOsc.connect(crossfade.a);
+    sawOsc.connect(crossfade.b);
+    crossfade.connect(tremolo);
+    doubleOsc.connect(doubleGain);
+    doubleGain.toDestination();
+    tremolo.toDestination();
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.toDestination();
+    
   // Set initial values
   crossfade.fade.value = norm.ch4;
-  wobbleOsc.detune.value = norm.co2 * 50;
-  wobbleGain.gain.value = norm.co2 * 0.5;
+  doubleGain.gain.value = norm.co2 * 0.5;
   noiseFilter.frequency.value = 200 + norm.no2 * 4000;
   noiseGain.gain.value = norm.no2 * 0.3;
 
   // Start
   sineOsc.start();
   sawOsc.start();
-  wobbleOsc.start();
+  doubleOsc.start();
   noise.start();
   tremolo.start();
 
@@ -160,8 +162,7 @@ async function playAirSound(data) {
       const n = normalize(newData);
       const o = (n.ch4 + n.co2 + n.no2) / 3;
       crossfade.fade.rampTo(n.ch4, 0.5);
-      wobbleOsc.detune.rampTo(n.co2 * 50, 0.5);
-      wobbleGain.gain.rampTo(n.co2 * 0.5, 0.5);
+      doubleGain.gain.rampTo(n.co2 * 0.5, 0.5);
       noiseFilter.frequency.rampTo(200 + n.no2 * 4000, 0.5);
       noiseGain.gain.rampTo(n.no2 * 0.3, 0.5);
       tremolo.frequency.rampTo(1 + o * 3, 0.5);
@@ -169,8 +170,8 @@ async function playAirSound(data) {
     },
 
     stop() {
-      [sineOsc, sawOsc, wobbleOsc, noise, tremolo].forEach(n => n.stop());
-      [sineOsc, sawOsc, wobbleOsc, noise, crossfade, wobbleGain,
+      [sineOsc, sawOsc, doubleOsc, noise, tremolo].forEach(n => n.stop());
+      [sineOsc, sawOsc, doubleOsc, noise, crossfade, doubleOsc,
        noiseFilter, noiseGain, tremolo].forEach(n => n.dispose());
     },
   };
