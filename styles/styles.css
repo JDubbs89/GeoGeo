@@ -377,3 +377,13 @@ body {
         padding: 2px;
     }
 }
+
+/* Leaflet retains the data model and controls while WebGL Earth draws the view. */
+.map { position: relative; min-width: 0; background: #07121f; }
+.globe-viewport, .globe-model { position: absolute; inset: 0; }
+.globe-model { visibility: hidden; pointer-events: none; }
+.globe-model.globe-fallback { visibility: visible; pointer-events: auto; }
+.globe-viewport:empty { display: none; }
+.globe-zoom { position: absolute; top: 10px; left: 10px; display: grid; z-index: 500; }
+.globe-zoom button { width: 30px; height: 30px; border: 1px solid #ccc; background: white; font-size: 20px; cursor: pointer; }
+.globe-notice { position: absolute; bottom: 24px; left: 12px; padding: 8px; background: white; z-index: 500; }

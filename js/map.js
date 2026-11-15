@@ -1,4 +1,5 @@
-import {LeafletMap, TileLayer, GeoJSON, CircleMarker, LayersControl, FeatureGroup} from 'leaflet';
+import {TileLayer, GeoJSON, CircleMarker, LayersControl, FeatureGroup} from 'leaflet';
+import {createGlobeMap} from './globe.js';
 import {createPollutantShapes} from './shapes.js';
 import {POLLUTANTS, SEVERITY_LEVELS, getSeverity, pollutantColor} from './severity.js';
 import {queryPoints} from './data.js';
@@ -8,8 +9,8 @@ const formatBandReading = value => value.toExponential(2);
 
 const guessing = document.getElementById('map').hasAttribute('data-guess-map');
 
-export const map = new LeafletMap('map').setView([20, 0], 2);
-new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+export const {map, globe} = createGlobeMap(document.getElementById('map'));
+if (!globe) new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 const pollutantLayers = Object.fromEntries(POLLUTANTS.map((pollutant, index) => [pollutant.id, new GeoJSON(null, {
@@ -68,8 +69,8 @@ function initializeControls() {
     function renderWorldCopies() {
         if (!currentShapes) return;
         const bounds = map.getBounds();
-        const firstWorld = Math.floor((bounds.getWest() + 180) / 360);
-        const lastWorld = Math.floor((bounds.getEast() + 180) / 360);
+        const firstWorld = globe ? 0 : Math.floor((bounds.getWest() + 180) / 360);
+        const lastWorld = globe ? 0 : Math.floor((bounds.getEast() + 180) / 360);
         const worlds = `${firstWorld},${lastWorld}`;
         if (worlds === renderedWorlds) return;
         renderedWorlds = worlds;
