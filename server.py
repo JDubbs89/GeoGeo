@@ -29,9 +29,14 @@ def game(request):
     return FileResponse(ROOT / 'game.html')
 
 
+def favicon(request):
+    return FileResponse(ROOT / 'favicon.ico', media_type='image/x-icon')
+
+
 app = Starlette(routes=[
     Route('/api/points', points), Route('/', index), Route('/play.html', index),
     Route('/game.html', game),
+    Route('/favicon.ico', favicon),
     *[Mount(f'/{name}', StaticFiles(directory=ROOT/name)) for name in ('js', 'styles')],
     Route('/api/generate_sound', generate_sound),
 ])
