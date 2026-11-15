@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>♪GeoGeo♪</title>
+    <title>♪GeoGeoGeo♪</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
     <link rel="stylesheet" href="styles/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/tone"></script>
@@ -28,10 +29,9 @@
         </div>
     </div>
     <div class="sidebar">
-        <h2>What does the Climate Sound Like?</h2>
+        <h2 id="game-heading">What does the Climate Sound Like?</h2>
         <p id="game-status" role="status">Loading a new round…</p>
-        <section id="game-results" class="game-results" role="status" aria-atomic="true" aria-labelledby="results-title" hidden>
-            <h3 id="results-title">Round results</h3>
+        <section id="game-results" class="game-results" role="status" aria-atomic="true" aria-labelledby="game-heading" hidden>
             <dl>
                 <div>
                     <dt>Location</dt>
@@ -47,25 +47,25 @@
                 </div>
             </dl>
             <table>
-                <caption>Slider details</caption>
+                <caption>Slider measurements (nearest readings)</caption>
                 <thead>
                     <tr><th scope="col">Pollutant</th><th scope="col">Your guess</th><th scope="col">Target</th><th scope="col">Error</th></tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <th scope="row">CO₂</th>
+                        <th scope="row">CO₂<br><small>ppm</small></th>
                         <td id="result-c02-guess" data-result-value></td>
                         <td id="result-c02-target" data-result-value></td>
                         <td id="result-c02-error" data-result-value></td>
                     </tr>
                     <tr>
-                        <th scope="row">CH₄</th>
+                        <th scope="row">CH₄<br><small>Mg yr⁻¹ km⁻²</small></th>
                         <td id="result-ch4-guess" data-result-value></td>
                         <td id="result-ch4-target" data-result-value></td>
                         <td id="result-ch4-error" data-result-value></td>
                     </tr>
                     <tr>
-                        <th scope="row">NO₂</th>
+                        <th scope="row">NO₂<br><small>ppbv</small></th>
                         <td id="result-n02-guess" data-result-value></td>
                         <td id="result-n02-target" data-result-value></td>
                         <td id="result-n02-error" data-result-value></td>

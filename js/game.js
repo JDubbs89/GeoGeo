@@ -1,4 +1,4 @@
-import {queryPoints} from './data.js';
+import {queryPoints, sliderReadings} from './data.js';
 import {map} from './map.js?v=7';
 import {Marker, DivIcon, Polyline, CircleMarker, FeatureGroup} from 'leaflet';
 
@@ -6,7 +6,7 @@ import {Marker, DivIcon, Polyline, CircleMarker, FeatureGroup} from 'leaflet';
 const pollutants = ['c02', 'ch4', 'n02'];
 const MAX_SLIDER_SCORE = 500;
 const MAX_LOCATION_SCORE = 500;
-const LOCATION_SCORE_SCALE_KM = 2000;
+const LOCATION_SCORE_SCALE_KM = 4000;
 let currentGoals = null;
 let roundFinished = false;
 let selectedLocation = null;
@@ -75,7 +75,7 @@ function scoreLocation(userLocation, goalLocation) {
         Math.cos(radians(userLocation.lat)) * Math.cos(radians(goalLocation.lat)) *
         Math.sin(radians(goalLocation.lon - userLocation.lon) / 2) ** 2;
     const distanceKm = 6371 * 2 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, a))));
-    // Smooth falloff: 500 at the target, about 184 at 2,000 km, then gradually less.
+    // Smooth falloff: 500 at the target, about 303 at 2,000 km, then gradually less.
     const score = Math.round(MAX_LOCATION_SCORE * Math.exp(-distanceKm / LOCATION_SCORE_SCALE_KM));
     return {score, distanceKm};
 }
@@ -129,6 +129,9 @@ async function submitGuess(userSliders, userLocation,
     cooldownTimer = null;
     updateSoundButtons();
     roundFinished = true;
+    heading.textContent = 'Round Over!';
+    status.textContent = '';
+    status.hidden = true;
     startButton.hidden = false;
     submitButton.textContent = 'Quit';
     submitButton.disabled = false;
@@ -167,6 +170,11 @@ async function showGameResults(userSliders, userLocation, goalSliders, goalLocat
     const sliders = scoreSliders(userSliders, goalSliders);
     const location = scoreLocation(userLocation, goalLocation);
     const totalScore = sliders.score + location.score;
+    const [guessReadings, targetReadings] = await Promise.all([
+        sliderReadings(userSliders), sliderReadings(goalSliders),
+    ]);
+    const formatReading = value => Number.isFinite(value) ?
+        value.toLocaleString(undefined, {maximumSignificantDigits: 4}) : 'No reading';
     // Each value has its own HTML element so the sidebar can style them independently.
     const values = {
         'result-total-score': totalScore.toLocaleString(),
@@ -177,9 +185,12 @@ async function showGameResults(userSliders, userLocation, goalSliders, goalLocat
         'result-location-max': MAX_LOCATION_SCORE,
     };
     for (const id of pollutants) {
-        values[`result-${id}-guess`] = userSliders[id];
-        values[`result-${id}-target`] = goalSliders[id];
-        values[`result-${id}-error`] = sliders.errors[id];
+        const guess = guessReadings[id];
+        const target = targetReadings[id];
+        values[`result-${id}-guess`] = formatReading(guess);
+        values[`result-${id}-target`] = formatReading(target);
+        values[`result-${id}-error`] = formatReading(
+            Number.isFinite(guess) && Number.isFinite(target) ? Math.abs(guess - target) : null);
     }
     for (const [id, value] of Object.entries(values)) {
         document.getElementById(id).textContent = value;
@@ -220,6 +231,8 @@ map.on('click', event => selectLocation(event.latlng));
 const startButton = document.getElementById('start-game');
 const submitButton = document.getElementById('submit-guess');
 const status = document.getElementById('game-status');
+const heading = document.getElementById('game-heading');
+const gameTitle = heading.textContent;
 const goalButton = document.getElementById('playGoalButton');
 const sliderButton = document.getElementById('play_button');
 const progress = document.getElementById('playProgress');
@@ -296,6 +309,8 @@ async function playRoundSound(isGoal) {
 
 async function beginRound() {
     roundFinished = false;
+    heading.textContent = gameTitle;
+    status.hidden = false;
     startButton.hidden = true;
     submitButton.textContent = 'GeoGeoGeo!';
     startButton.disabled = true;
@@ -337,7 +352,6 @@ submitButton.addEventListener('click', async () => {
         const userSliders = Object.fromEntries(pollutants.map(id =>
             [id, Number(document.getElementById(`${id}-threshold`).value)]));
         await submitGuess(userSliders, selectedLocation);
-        status.textContent = 'Round finished.';
     } catch (error) {
         status.textContent = error.message;
         submitButton.disabled = !currentGoals;
