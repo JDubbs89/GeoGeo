@@ -3,3 +3,5 @@ uvicorn==0.54.0
 pydap==3.5.11
 python-dotenv==1.2.4
 requests==2.34.2
+numpy==2.5.4
+scipy==1.18.1
