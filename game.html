@@ -29,24 +29,16 @@
     </div>
     <div class="sidebar">
         <h2>What does the Climate Sound Like?</h2>
-        <button type="button" id="start-game" disabled>Replay</button>
-        <button type="button" id="submit-guess" disabled>Submit guess</button>
         <p id="game-status" role="status">Loading a new round…</p>
         <section id="game-results" class="game-results" role="status" aria-atomic="true" aria-labelledby="results-title" hidden>
             <h3 id="results-title">Round results</h3>
             <dl>
-                <dt>Total score</dt>
-                <dd><span id="result-total-score" data-result-value></span> / <span id="result-total-max" data-result-value></span> points</dd>
-                <dt>Slider score</dt>
-                <dd><span id="result-slider-score" data-result-value></span> / <span id="result-slider-max" data-result-value></span> points</dd>
-                <dt>Location score</dt>
+                <dt>Location</dt>
                 <dd><span id="result-location-score" data-result-value></span> / <span id="result-location-max" data-result-value></span> points</dd>
-                <dt>Distance from target</dt>
-                <dd><span id="result-distance" data-result-value></span> km</dd>
-                <dt>Target latitude</dt>
-                <dd><span id="result-latitude" data-result-value></span>°</dd>
-                <dt>Target longitude</dt>
-                <dd><span id="result-longitude" data-result-value></span>°</dd>
+                <dt>Sound</dt>
+                <dd><span id="result-slider-score" data-result-value></span> / <span id="result-slider-max" data-result-value></span> points</dd>
+                <dt>Total</dt>
+                <dd><span id="result-total-score" data-result-value></span> / <span id="result-total-max" data-result-value></span> points</dd>
             </dl>
             <table>
                 <caption>Slider details</caption>
@@ -77,25 +69,40 @@
             <p>Click Replay to play again.</p>
         </section>
         <!-- <p id="data-status" role="status">Loading matching coordinates…</p> -->
-        <button type="button" id="show-all-layers">Show all pollutants</button>
         <p>CH₄ percentiles compare positive emissions. Zero-emission locations appear when the band includes 0.</p>
         <div class="sliders">
-            <label for="c02-threshold">CO2 Emissions</label>
-            <div>
-                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="threshold-value">
+            <label for="c02-threshold">CO₂ concentration</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="c02-band c02-units">
+                <div class="slider-reading">
+                    <output id="c02-band" class="slider-band" for="c02-threshold" aria-label="CO₂ concentration range in ppm">Loading…</output>
+                    <span id="c02-units" class="slider-band-units">ppm</span>
+                </div>
             </div>
-            <label for="ch4-threshold">CH4 Emissions</label>
-            <div>
-                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="threshold-value">
+            <label for="ch4-threshold">CH₄ emissions</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="ch4-band ch4-units">
+                <div class="slider-reading">
+                    <output id="ch4-band" class="slider-band" for="ch4-threshold" aria-label="CH₄ emissions range in Mg per year per square kilometer">Loading…</output>
+                    <span id="ch4-units" class="slider-band-units">Mg yr⁻¹ km⁻²</span>
+                </div>
             </div>
-            <label for="n02-threshold">N2O Emissions</label>
-            <div>
-                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="threshold-value">
+            <label for="n02-threshold">NO₂ concentration</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="n02-band n02-units">
+                <div class="slider-reading">
+                    <output id="n02-band" class="slider-band" for="n02-threshold" aria-label="NO₂ concentration range in ppbv">Loading…</output>
+                    <span id="n02-units" class="slider-band-units">ppbv</span>
+                </div>
             </div>
-            <output id="threshold-value" for="c02-threshold ch4-threshold n02-threshold"></output>
+            <p id="threshold-value" role="status" hidden></p>
         </div>
         <button type="button" id="play_button" class="playButton" aria-label="Play slider sound" title="Play slider sound" disabled>▶</button>
         <p id="audio-status" role="status" hidden></p>
+        <div class="game-controls">    
+            <button class="replay-button" type="button" id="start-game" hidden disabled>Play Again</button>
+            <button class="submit-button" type="button" id="submit-guess" disabled>GeoGeoGeo!</button>
+        </div>
     </div>
 </body>
 </html>

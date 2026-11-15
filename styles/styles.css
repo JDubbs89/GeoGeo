@@ -158,6 +158,42 @@ body {
     margin-top: 0;
 }
 
+.slider-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+}
+
+.slider-reading {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.slider-band-units {
+    color: #18351c;
+    font-size: 0.75rem;
+    line-height: 1.25;
+}
+
+.slider-band {
+    box-sizing: border-box;
+    display: grid;
+    place-content: center;
+    width: 22ch;
+    height: 32px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #e2ebd5;
+    color: #18351c;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    font-size: 0.875rem;
+    line-height: 1.25;
+    white-space: pre;
+}
+
 .tooltip {
     margin: 0;
 }
@@ -221,4 +257,42 @@ body {
     background: #0077cc;
     box-shadow: 0 1px 4px #333;
     transform: translateY(6px) rotate(-45deg);
+}
+
+.game-controls {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    margin-top: 16px;
+    width: 100%;
+}
+
+.game-controls [hidden] {
+    display: none;
+}
+
+.submit-button {
+    display: block;
+    width: 100%;
+    height: 40px;
+    margin: 16px auto;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: #287d2c;
+    color: white;
+    cursor: pointer;
+}
+
+.replay-button {
+    display: block;
+    width: 100%;
+    height: 40px;
+    margin: 16px auto;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    background-color: #e2ebd5;
+    color: #333;
+    cursor: pointer;
 }

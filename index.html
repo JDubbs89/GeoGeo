@@ -27,13 +27,31 @@
         <p>CH₄ percentiles compare positive emissions. Zero-emission locations appear when the band includes 0.</p>
         <div class="sliders">
             <p>Each slider selects readings within ±20 percentile points for its own pollutant. Toggle CO₂ (green), CH₄ (orange), and NO₂ (purple) independently in the map controls, or show all three together. Darker shades show higher readings: low, medium, high, and very high.</p>
-            <label for="c02-threshold">CO2 Emissions (2016)</label>
-            <input type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="threshold-value">
-            <label for="ch4-threshold">CH4 Emissions (2016)</label>
-            <input type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="threshold-value">
-            <label for="n02-threshold">N2O Emissions (2016)</label>
-            <input type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="threshold-value">
-            <output id="threshold-value" for="c02-threshold ch4-threshold n02-threshold"></output>
+            <label for="c02-threshold">CO₂ concentration (2016)</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="c02-band c02-units">
+                <div class="slider-reading">
+                    <output id="c02-band" class="slider-band" for="c02-threshold" aria-label="CO₂ concentration range in ppm">Loading…</output>
+                    <span id="c02-units" class="slider-band-units">ppm</span>
+                </div>
+            </div>
+            <label for="ch4-threshold">CH₄ emissions (2016)</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="ch4-band ch4-units">
+                <div class="slider-reading">
+                    <output id="ch4-band" class="slider-band" for="ch4-threshold" aria-label="CH₄ emissions range in Mg per year per square kilometer">Loading…</output>
+                    <span id="ch4-units" class="slider-band-units">Mg yr⁻¹ km⁻²</span>
+                </div>
+            </div>
+            <label for="n02-threshold">NO₂ concentration (2016)</label>
+            <div class="slider-row">
+                <input class="slider" type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="n02-band n02-units">
+                <div class="slider-reading">
+                    <output id="n02-band" class="slider-band" for="n02-threshold" aria-label="NO₂ concentration range in ppbv">Loading…</output>
+                    <span id="n02-units" class="slider-band-units">ppbv</span>
+                </div>
+            </div>
+            <p id="threshold-value" role="status" hidden></p>
         </div>
         <button type="button" id="play_button" onclick="gatherDataAndPlaySound()">Play</button>
         <p id="audio-status" role="status" hidden></p>

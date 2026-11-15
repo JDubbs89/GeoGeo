@@ -4,6 +4,7 @@ import {POLLUTANTS, SEVERITY_LEVELS, getSeverity, pollutantColor} from './severi
 import {queryPoints} from './data.js';
 
 const formatReading = (value) => Number.isFinite(value) ? value.toLocaleString(undefined, {maximumSignificantDigits: 4}) : 'No reading';
+const formatBandReading = value => value.toExponential(2);
 
 const guessing = document.getElementById('map').hasAttribute('data-guess-map');
 
@@ -43,15 +44,13 @@ function initializeControls() {
     const ch4Slider = document.getElementById('ch4-threshold');
     const n02Slider = document.getElementById('n02-threshold');
     const output = document.getElementById('threshold-value');
+    const bandOutputs = Object.fromEntries(POLLUTANTS.map(({id}) =>
+        [id, document.getElementById(`${id}-band`)]));
 
-    if (!c02Slider || !ch4Slider || !n02Slider || !output) {
+    if (!c02Slider || !ch4Slider || !n02Slider || !output || Object.values(bandOutputs).some(item => !item)) {
         console.error('Map controls are missing from the page.');
         return;
     }
-
-    document.getElementById('show-all-layers').addEventListener('click', () => {
-        for (const layer of Object.values(pollutantLayers)) layer.addTo(map);
-    });
 
     let updating = false;
     let fitted = false;
@@ -93,6 +92,11 @@ function initializeControls() {
     map.on('moveend', renderWorldCopies);
 
     async function update() {
+    // Percentiles select the band; its displayed range comes from real measurements.
+    for (const {id} of POLLUTANTS) {
+        bandOutputs[id].textContent = 'Loading…';
+        bandOutputs[id].setAttribute('aria-busy', 'true');
+    }
     if (updating) return;
     updating = true;
     const c02Value = c02Slider.value;
@@ -100,27 +104,30 @@ function initializeControls() {
     const n02Value = n02Slider.value;
     try {
         const result = await queryPoints(c02Value + ',' + ch4Value + ',' + n02Value);
+        // Do not show measurements from an older slider position during a drag.
+        if (c02Slider.value !== c02Value || ch4Slider.value !== ch4Value || n02Slider.value !== n02Value) return;
+        for (const {id} of POLLUTANTS) {
+            const readings = result.layers[id].map(record => record[id]).filter(Number.isFinite);
+            if (readings.length) {
+                const [min, max] = readings.reduce(([low, high], value) =>
+                    [Math.min(low, value), Math.max(high, value)], [Infinity, -Infinity]);
+                const range = min === max ? formatBandReading(min) : `${formatBandReading(min)}–${formatBandReading(max)}`;
+                bandOutputs[id].textContent = range;
+            } else {
+                bandOutputs[id].textContent = 'No readings';
+            }
+            bandOutputs[id].setAttribute('aria-busy', 'false');
+        }
         currentShapes = null;
         renderedWorlds = '';
         for (const layer of Object.values(pollutantLayers)) layer.clearLayers();
         if (!result.total) {
             output.textContent = 'No pollutant measurements are available. Import the data.';
+            output.hidden = false;
             return;
         }
-        const summaries = POLLUTANTS.map(pollutant => {
-            const records = result.layers[pollutant.id];
-            const units = {c02: 'ppm', ch4: 'Mg yr⁻¹ km⁻²', n02: 'ppbv'};
-            const range = records.length ? (() => {
-                const [min, max] = records.reduce(([low, high], record) =>
-                    [Math.min(low, record[pollutant.id]), Math.max(high, record[pollutant.id])],
-                    [Infinity, -Infinity]);
-                return `${formatReading(min)}–${formatReading(max)} ${units[pollutant.id]}`;
-            })() : 'No matching readings';
-            const scale = pollutant.id === 'ch4' ? 'positive-emission percentile band' : 'percentile band';
-            const band = result.bands[pollutant.id];
-            return `${pollutant.label}: ${scale} ${band.lower}–${band.upper}%; ${records.length} locations; ${range}`;
-        });
-        output.textContent = summaries.join(' — ');
+        output.textContent = '';
+        output.hidden = true;
         const shapes = createPollutantShapes(result.layers, result.grid_spacing);
         for (const pollutant of POLLUTANTS) pollutantLayers[pollutant.id].addData(shapes[pollutant.id]);
         const bounds = allLayers.getBounds();
@@ -132,7 +139,12 @@ function initializeControls() {
         currentShapes = shapes;
         renderWorldCopies();
     } catch (error) {
+        for (const {id} of POLLUTANTS) {
+            bandOutputs[id].textContent = 'Unavailable';
+            bandOutputs[id].setAttribute('aria-busy', 'false');
+        }
         output.textContent = `Unable to update the map: ${error.message}`;
+        output.hidden = false;
         console.error('Unable to update the map:', error);
     } finally {
         updating = false;

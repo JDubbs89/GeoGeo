@@ -22,21 +22,16 @@ def points(request):
 
 
 def index(request):
-    return FileResponse(ROOT / 'index.html')
+    return FileResponse(ROOT / 'play.html')
 
 
 def game(request):
     return FileResponse(ROOT / 'game.html')
 
 
-def play(request):
-    return FileResponse(ROOT / 'play.html')
-
-
 app = Starlette(routes=[
-    Route('/api/points', points), Route('/', index), Route('/index.html', index),
+    Route('/api/points', points), Route('/', index), Route('/play.html', index),
     Route('/game.html', game),
-    Route('/play.html', play),
     *[Mount(f'/{name}', StaticFiles(directory=ROOT/name)) for name in ('js', 'styles')],
     Route('/api/generate_sound', generate_sound),
 ])

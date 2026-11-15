@@ -8,6 +8,7 @@ const MAX_SLIDER_SCORE = 500;
 const MAX_LOCATION_SCORE = 500;
 const LOCATION_SCORE_SCALE_KM = 2000;
 let currentGoals = null;
+let roundFinished = false;
 let selectedLocation = null;
 let guessMarker = null;
 let resultReveal = null;
@@ -127,6 +128,10 @@ async function submitGuess(userSliders, userLocation,
     clearInterval(cooldownTimer);
     cooldownTimer = null;
     updateSoundButtons();
+    roundFinished = true;
+    startButton.hidden = false;
+    submitButton.textContent = 'Quit';
+    submitButton.disabled = false;
     
     return results;
 }
@@ -170,9 +175,6 @@ async function showGameResults(userSliders, userLocation, goalSliders, goalLocat
         'result-slider-max': MAX_SLIDER_SCORE,
         'result-location-score': location.score,
         'result-location-max': MAX_LOCATION_SCORE,
-        'result-distance': location.distanceKm.toLocaleString(undefined, {maximumFractionDigits: 1}),
-        'result-latitude': goalLocation.lat.toFixed(2),
-        'result-longitude': goalLocation.lon.toFixed(2),
     };
     for (const id of pollutants) {
         values[`result-${id}-guess`] = userSliders[id];
@@ -293,6 +295,9 @@ async function playRoundSound(isGoal) {
 }
 
 async function beginRound() {
+    roundFinished = false;
+    startButton.hidden = true;
+    submitButton.textContent = 'GeoGeoGeo!';
     startButton.disabled = true;
     submitButton.disabled = true;
     goalButton.disabled = true;
@@ -306,6 +311,8 @@ async function beginRound() {
         status.textContent = 'Press ▶ above the map to hear the goal. Adjust the sliders and place your pin.';
     } catch (error) {
         status.textContent = error.message;
+        submitButton.textContent = 'Try again';
+        submitButton.disabled = false;
     } finally {
         startButton.disabled = false;
         updateSoundButtons();
@@ -317,6 +324,14 @@ goalButton.addEventListener('click', () => playRoundSound(true));
 sliderButton.addEventListener('click', () => playRoundSound(false));
 
 submitButton.addEventListener('click', async () => {
+    if (roundFinished) {
+        window.location.href = 'play.html';
+        return;
+    }
+    if (!currentGoals) {
+        await beginRound();
+        return;
+    }
     submitButton.disabled = true;
     try {
         const userSliders = Object.fromEntries(pollutants.map(id =>
