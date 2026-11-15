@@ -1,5 +1,6 @@
 import clustering from 'density-clustering';
 import concaveman from 'concaveman';
+import {POLLUTANTS, SEVERITY_LEVELS, getSeverity} from './severity.js';
 
 function clusterPoints(points, eps = 0.5, minPts = 5) {
     if (points.some(point => point.length !== 2 || !point.every(Number.isFinite))) {
@@ -20,14 +21,14 @@ function createConcaveHull(points, concavity = 1.5) {
 }
 
 function aggregatePoints(points) {
-    const mean = field => points.reduce((sum, point) => sum + point[field], 0) / points.length;
-    const weight = points.reduce((sum, point) => sum + point.score, 0);
-    const center = field => weight > 0
-        ? points.reduce((sum, point) => sum + point[field] * point.score, 0) / weight
-        : mean(field);
-    return {pointCount: points.length, score: mean('score'),
+    const mean = field => {
+        const values = points.map(point => point[field]).filter(Number.isFinite);
+        return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    };
+    return {pointCount: points.length,
+        c02_rank: mean('c02_rank'), ch4_rank: mean('ch4_rank'), n02_rank: mean('n02_rank'),
         c02: mean('c02'), ch4: mean('ch4'), n02: mean('n02'),
-        center: {lat: center('lat'), lon: center('lon')}};
+        center: {lat: mean('lat'), lon: mean('lon')}};
 }
 
 function createClusterShapes(records, gridSpacing) {
@@ -36,6 +37,7 @@ function createClusterShapes(records, gridSpacing) {
     const eps = Math.hypot(gridSpacing.latitude, gridSpacing.longitude) * 1.01;
     const clusters = clusterPoints(points, eps, 5);
     const features = [];
+    const represented = new Set();
     for (const cluster of clusters) {
         const ring = createConcaveHull(cluster);
         if (!ring) continue;
@@ -44,8 +46,30 @@ function createClusterShapes(records, gridSpacing) {
             properties: aggregatePoints(cluster.map(point => byCoordinate.get(point.join(',')))),
             geometry: {type: 'Polygon', coordinates: [ring]},
         });
+        for (const point of cluster) represented.add(point.join(','));
+    }
+    // Isolated or collinear matches cannot form a hull, but must still be shown.
+    for (const record of records) {
+        if (represented.has([record.lon, record.lat].join(','))) continue;
+        features.push({
+            type: 'Feature',
+            properties: aggregatePoints([record]),
+            geometry: {type: 'Point', coordinates: [record.lon, record.lat]},
+        });
     }
     return {type: 'FeatureCollection', features};
 }
 
-export {clusterPoints, createConcaveHull, createClusterShapes, aggregatePoints};
+function createPollutantShapes(recordsByPollutant, gridSpacing) {
+    return Object.fromEntries(POLLUTANTS.map(pollutant => {
+        const groups = Object.fromEntries(SEVERITY_LEVELS.map(level => [level.id, []]));
+        for (const record of recordsByPollutant[pollutant.id]) {
+            groups[getSeverity(record[`${pollutant.id}_rank`]).id].push(record);
+        }
+        // Preserve each pollutant's amount band when forming polygons.
+        return [pollutant.id, {type: 'FeatureCollection', features: SEVERITY_LEVELS.flatMap(level =>
+            createClusterShapes(groups[level.id], gridSpacing).features)}];
+    }));
+}
+
+export {clusterPoints, createConcaveHull, createClusterShapes, createPollutantShapes, aggregatePoints};

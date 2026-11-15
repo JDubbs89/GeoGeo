@@ -18,17 +18,24 @@
 </head>
 <body class="display">
     <div id="map" class="map">
-        <script type="module" src="js/map.js"></script>
+        <script type="module" src="js/map.js?v=7"></script>
     </div>
     <div class="sidebar">
         <h2>What does the Climate Sound Like?</h2>
         <!-- <p id="data-status" role="status">Loading matching coordinates…</p> -->
+        <button type="button" id="show-all-layers">Show all pollutants</button>
+        <p>CH₄ percentiles compare positive emissions. Zero-emission locations appear when the band includes 0.</p>
         <div class="sliders">
-            <label for="threshold">Greenhouse Gas Emissions (2016)</label>
-            <input type="range" min="0" max="100" value="50" step="1" id="threshold" aria-describedby="threshold-value">
-            <output id="threshold-value" for="threshold"></output>
+            <p>Each slider selects readings within ±20 percentile points for its own pollutant. Toggle CO₂ (green), CH₄ (orange), and NO₂ (purple) independently in the map controls, or show all three together. Darker shades show higher readings: low, medium, high, and very high.</p>
+            <label for="c02-threshold">CO2 Emissions (2016)</label>
+            <input type="range" min="0" max="100" value="50" step="1" id="c02-threshold" aria-describedby="threshold-value">
+            <label for="ch4-threshold">CH4 Emissions (2016)</label>
+            <input type="range" min="0" max="100" value="50" step="1" id="ch4-threshold" aria-describedby="threshold-value">
+            <label for="n02-threshold">N2O Emissions (2016)</label>
+            <input type="range" min="0" max="100" value="50" step="1" id="n02-threshold" aria-describedby="threshold-value">
+            <output id="threshold-value" for="c02-threshold ch4-threshold n02-threshold"></output>
         </div>
-        <button id="play_button" onclick="playSlider(document.getElementById('threshold').value)">Play</button>
+        <button id="play_button" onclick="playSlider(document.getElementById('c02-threshold').value)">Play</button>
     </div>
 </body>
 </html>

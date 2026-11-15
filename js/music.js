@@ -50,3 +50,7 @@ async function playSlider(value) {
     console.log(`Playing note: ${note} for value: ${value}`);
     await playSound(note, '8n');
 }
+
+async function createToneFromPollutantData(co2, ch4, no2) {
+
+}

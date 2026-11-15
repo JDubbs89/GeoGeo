@@ -1,69 +1,108 @@
-import {LeafletMap, TileLayer, GeoJSON} from 'leaflet';
-import {createClusterShapes} from './shapes.js';
+import {LeafletMap, TileLayer, GeoJSON, CircleMarker, LayersControl, FeatureGroup} from 'leaflet';
+import {createPollutantShapes} from './shapes.js';
+import {POLLUTANTS, SEVERITY_LEVELS, getSeverity, pollutantColor} from './severity.js';
 import {queryPoints} from './data.js';
 
-const formatReading = value => value.toLocaleString(undefined, {maximumSignificantDigits: 4});
+const formatReading = (value) => Number.isFinite(value) ? value.toLocaleString(undefined, {maximumSignificantDigits: 4}) : 'No reading';
 
 const map = new LeafletMap('map').setView([20, 0], 2);
 new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
-const layer = new GeoJSON(null, {
-    style: feature => ({color: '#a33623', weight: 1, fillOpacity: 0.15 + feature.properties.score / 200}),
+const pollutantLayers = Object.fromEntries(POLLUTANTS.map((pollutant, index) => [pollutant.id, new GeoJSON(null, {
+    style: feature => ({color: pollutantColor(pollutant, feature.properties[`${pollutant.id}_rank`]),
+        weight: 1, fillOpacity: 0.3}),
+    pointToLayer: (feature, latlng) => new CircleMarker(latlng, {radius: 8 - index * 2}),
     onEachFeature: (feature, item) => {
         const p = feature.properties;
-        item.bindPopup(`<p class="tooltip"><strong>Area averages</strong><br>` +
+        const title = p.pointCount === 1 ? 'Location readings' : 'Area averages';
+        item.bindPopup(`<p class="tooltip"><strong>${title}</strong><br>` +
+            `${pollutant.label}: ${getSeverity(p[`${pollutant.id}_rank`]).label} · ${pollutant.id === 'ch4' ? 'Positive-emission percentile' : 'Percentile'}: ${formatReading(p[`${pollutant.id}_rank`])}%<br>` +
             `CO₂: ${formatReading(p.c02)} ppm<br>` +
             `CH₄ emissions: ${formatReading(p.ch4)} Mg yr⁻¹ km⁻²<br>` +
             `NO₂: ${formatReading(p.n02)} ppbv</p>`, {minWidth: 300, maxWidth: 420});
     },
-}).addTo(map);
-const slider = document.getElementById('threshold');
-const output = document.getElementById('threshold-value');
-const status = document.getElementById('data-status');
-let updating = false;
-let fitted = false;
+})]));
+for (const layer of Object.values(pollutantLayers)) layer.addTo(map);
+const layerChoices = Object.fromEntries(POLLUTANTS.map(pollutant => [
+    `${pollutant.label} ${pollutant.shades.map((color, i) =>
+        `<span title="${SEVERITY_LEVELS[i].label}: ${SEVERITY_LEVELS[i].min}–${SEVERITY_LEVELS[i].max}%" style="color: ${color}">■</span>`
+    ).join('')}`,
+    pollutantLayers[pollutant.id],
+]));
+new LayersControl({}, layerChoices, {collapsed: false}).addTo(map);
+const allLayers = new FeatureGroup(Object.values(pollutantLayers));
 
-async function update() {
+function initializeControls() {
+    const c02Slider = document.getElementById('c02-threshold');
+    const ch4Slider = document.getElementById('ch4-threshold');
+    const n02Slider = document.getElementById('n02-threshold');
+    const output = document.getElementById('threshold-value');
+
+    if (!c02Slider || !ch4Slider || !n02Slider || !output) {
+        console.error('Map controls are missing from the page.');
+        return;
+    }
+
+    document.getElementById('show-all-layers').addEventListener('click', () => {
+        for (const layer of Object.values(pollutantLayers)) layer.addTo(map);
+    });
+
+    let updating = false;
+    let fitted = false;
+
+    async function update() {
     if (updating) return;
     updating = true;
-    const value = slider.value;
+    const c02Value = c02Slider.value;
+    const ch4Value = ch4Slider.value;
+    const n02Value = n02Slider.value;
     try {
-        const result = await queryPoints(value);
-        layer.clearLayers();
+        const result = await queryPoints(c02Value + ',' + ch4Value + ',' + n02Value);
+        for (const layer of Object.values(pollutantLayers)) layer.clearLayers();
         if (!result.total) {
-            //status.textContent = 'No coordinates have all three measurements. Import the aligned data.';
+            output.textContent = 'No pollutant measurements are available. Import the data.';
             return;
         }
-        const weights = ['c02', 'ch4', 'n02'].map(field => `${(result.weights[field] * 100).toFixed(1)}%`).join(' / ');
-        const readings = result.points.length ? [
-            ['c02', 'CO₂', 'ppm'],
-            ['ch4', 'CH₄ emissions', 'Mg yr⁻¹ km⁻²'],
-            ['n02', 'NO₂', 'ppbv'],
-        ].map(([field, label, units]) => {
-            const [min, max] = result.points.reduce(
-                ([low, high], point) => [Math.min(low, point[field]), Math.max(high, point[field])],
-                [Infinity, -Infinity]
-            );
-            return `${label}: ${formatReading(min)}–${formatReading(max)} ${units}`;
-        }).join('; ') : 'No matching gas readings.';
-        output.textContent = `${readings}`;
-        const shapes = createClusterShapes(result.points, result.grid_spacing);
-        const shapeCount = shapes.features.length;
-        layer.addData(shapes);
-        //status.textContent = `${result.points.length} of ${result.total} coordinates; ${shapeCount} shapes.`;
-        if (!fitted && layer.getBounds().isValid()) {
-            map.fitBounds(layer.getBounds(), {maxZoom: 5});
+        const summaries = POLLUTANTS.map(pollutant => {
+            const records = result.layers[pollutant.id];
+            const units = {c02: 'ppm', ch4: 'Mg yr⁻¹ km⁻²', n02: 'ppbv'};
+            const range = records.length ? (() => {
+                const [min, max] = records.reduce(([low, high], record) =>
+                    [Math.min(low, record[pollutant.id]), Math.max(high, record[pollutant.id])],
+                    [Infinity, -Infinity]);
+                return `${formatReading(min)}–${formatReading(max)} ${units[pollutant.id]}`;
+            })() : 'No matching readings';
+            const scale = pollutant.id === 'ch4' ? 'positive-emission percentile band' : 'percentile band';
+            const band = result.bands[pollutant.id];
+            return `${pollutant.label}: ${scale} ${band.lower}–${band.upper}%; ${records.length} locations; ${range}`;
+        });
+        output.textContent = summaries.join(' — ');
+        const shapes = createPollutantShapes(result.layers, result.grid_spacing);
+        for (const pollutant of POLLUTANTS) pollutantLayers[pollutant.id].addData(shapes[pollutant.id]);
+        const bounds = allLayers.getBounds();
+        if (!fitted && bounds.isValid()) {
+            map.fitBounds(bounds, {maxZoom: 5});
             fitted = true;
         }
     } catch (error) {
-        // If the error is not an AbortError, update the status message
-        //if (error.name !== 'AbortError') status.textContent = error.message;
+        output.textContent = `Unable to update the map: ${error.message}`;
+        console.error('Unable to update the map:', error);
     } finally {
         updating = false;
         // Keep drawing during a drag, then catch up to the most recent value.
-        if (slider.value !== value) update();
+        if (c02Slider.value !== c02Value || ch4Slider.value !== ch4Value || n02Slider.value !== n02Value) update();
     }
+    }
+
+    c02Slider.addEventListener('input', update);
+    ch4Slider.addEventListener('input', update);
+    n02Slider.addEventListener('input', update);
+    update();
 }
-slider.addEventListener('input', update);
-update();
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeControls, {once: true});
+} else {
+    initializeControls();
+}
