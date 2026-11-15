@@ -6,6 +6,8 @@
     <title>♪GeoGeo♪</title>
     <link rel="stylesheet" href="styles/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/tone"></script>
+    <script src="js/music.js"></script>
     <script type="importmap">
         {"imports": {
             "leaflet": "https://cdn.jsdelivr.net/npm/leaflet@2.0.0-beta.4/dist/leaflet.js",
@@ -26,6 +28,7 @@
             <input type="range" min="0" max="100" value="50" step="1" id="threshold" aria-describedby="threshold-value">
             <output id="threshold-value" for="threshold"></output>
         </div>
+        <button id="play_button" onclick="playSlider(document.getElementById('threshold').value)">Play</button>
     </div>
 </body>
 </html>
