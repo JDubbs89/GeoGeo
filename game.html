@@ -17,7 +17,7 @@
 	</script>
     <script type="module" src="js/game.js"></script>
 </head>
-<body class="display">
+<body class="display game-screen">
     <div id="left-area" class="left-area">
         <div id="playSound" class="playSound">
             <button type="button" id="playGoalButton" class="playButton" aria-label="Play goal sound" title="Play goal sound" disabled>▶</button>
@@ -33,12 +33,18 @@
         <section id="game-results" class="game-results" role="status" aria-atomic="true" aria-labelledby="results-title" hidden>
             <h3 id="results-title">Round results</h3>
             <dl>
-                <dt>Location</dt>
-                <dd><span id="result-location-score" data-result-value></span> / <span id="result-location-max" data-result-value></span> points</dd>
-                <dt>Sound</dt>
-                <dd><span id="result-slider-score" data-result-value></span> / <span id="result-slider-max" data-result-value></span> points</dd>
-                <dt>Total</dt>
-                <dd><span id="result-total-score" data-result-value></span> / <span id="result-total-max" data-result-value></span> points</dd>
+                <div>
+                    <dt>Location</dt>
+                    <dd><span id="result-location-score" data-result-value></span> / <span id="result-location-max" data-result-value></span> points</dd>
+                </div>
+                <div>
+                    <dt>Sound</dt>
+                    <dd><span id="result-slider-score" data-result-value></span> / <span id="result-slider-max" data-result-value></span> points</dd>
+                </div>
+                <div>
+                    <dt>Total</dt>
+                    <dd><span id="result-total-score" data-result-value></span> / <span id="result-total-max" data-result-value></span> points</dd>
+                </div>
             </dl>
             <table>
                 <caption>Slider details</caption>
@@ -69,7 +75,6 @@
             <p>Click Replay to play again.</p>
         </section>
         <!-- <p id="data-status" role="status">Loading matching coordinates…</p> -->
-        <p>CH₄ percentiles compare positive emissions. Zero-emission locations appear when the band includes 0.</p>
         <div class="sliders">
             <label for="c02-threshold">CO₂ concentration</label>
             <div class="slider-row">

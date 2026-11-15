@@ -200,7 +200,7 @@ body {
 
 .playSound {
     position: absolute;
-    top: 16px;
+    top: 12px;
     left: 48px;
     width: max-content;
     height: max-content;
@@ -295,4 +295,89 @@ body {
     background-color: #e2ebd5;
     color: #333;
     cursor: pointer;
+}
+
+/* Compact game sidebar, including the results shown after a round. */
+.game-screen .sidebar {
+    min-width: 320px;
+    padding: 12px;
+}
+
+.game-screen .sidebar h2 {
+    margin: 0 0 8px;
+    font-size: 1.25rem;
+    line-height: 1.2;
+}
+
+.game-screen .sidebar p {
+    margin: 6px 0;
+    line-height: 1.2;
+}
+
+.game-screen .game-results h3 {
+    margin: 8px 0 6px;
+    font-size: 1rem;
+}
+
+.game-screen .game-results dl {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 6px 0;
+    line-height: 1.2;
+}
+
+.game-screen .game-results dt {
+    font-weight: 600;
+}
+
+.game-screen .game-results caption {
+    margin-bottom: 4px;
+}
+
+.game-screen .game-results th,
+.game-screen .game-results td {
+    padding: 4px 2px;
+}
+
+.game-screen .sliders {
+    gap: 2px;
+}
+
+.game-screen .sliders label {
+    margin-top: 4px;
+    line-height: 1.1;
+}
+
+.game-screen .sliders label:first-of-type {
+    margin-top: 0;
+}
+
+.game-screen .slider-reading {
+    gap: 2px;
+}
+
+.game-screen #play_button {
+    min-height: 32px;
+    margin-top: 6px;
+    padding: 4px 12px;
+    font-size: 1.125rem;
+}
+
+.game-screen .game-controls {
+    margin-top: 8px;
+}
+
+.game-screen .game-controls button {
+    margin: 0;
+}
+
+@media (max-height: 650px) {
+    .game-screen .sidebar {
+        padding: 8px;
+    }
+
+    .game-screen .game-results th,
+    .game-screen .game-results td {
+        padding: 2px;
+    }
 }
