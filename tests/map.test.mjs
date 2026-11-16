@@ -8,7 +8,7 @@ const source = (await readFile(new URL('../js/map.js', import.meta.url), 'utf8')
     .replace(/^import .*;$/gm, '').replace('export const', 'const');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
-function setup() {
+function setup(mode = '2d') {
     const elements = new Map();
     const element = id => {
         if (!elements.has(id)) elements.set(id, {value: '50', textContent: '', attributes: {},
@@ -19,14 +19,14 @@ function setup() {
     };
     const layers = [];
     class Layer {
-        constructor() { this.clears = 0; layers.push(this); }
+        constructor() { this.clears = 0; this.adds = 0; layers.push(this); }
         addTo() { return this; }
         clearLayers() { this.clears++; }
-        addData() {}
+        addData() { this.adds++; }
     }
     const events = {};
     let west = -180, east = 180;
-    const map = {viewMode: '2d', on(names, callback) {
+    const map = {viewMode: mode, on(names, callback) {
         for (const name of names.split(' ')) events[name] = callback;
     }, getBounds: () => ({getWest: () => west, getEast: () => east}), fitBounds() {}};
     const queries = [], shapes = [];
@@ -94,4 +94,17 @@ test('rapid changes coalesce and discard stale responses independently', async (
     await flush();
     assert.deepEqual(app.shapes.slice(3).map(keys => [...keys]), [['c02'], ['ch4']]);
     assert.equal(app.element('ch4-band').attributes['aria-busy'], 'false');
+});
+
+test('3D updates install changed geometry once', async () => {
+    const app = setup('3d');
+    respond(app.queries[0]);
+    await flush();
+    const adds = app.layers.map(layer => layer.adds);
+    app.change('ch4', '70');
+    respond(app.queries[1], ['ch4']);
+    await flush();
+    assert.equal(app.layers[1].adds - adds[1], 1);
+    assert.equal(app.layers[0].adds, adds[0]);
+    assert.equal(app.layers[2].adds, adds[2]);
 });

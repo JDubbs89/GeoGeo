@@ -81,6 +81,10 @@ function initializeControls() {
             layer.clearLayers();
             for (let world = firstWorld; world <= lastWorld; world++) {
                 const collection = currentShapes[pollutant.id];
+                if (world === 0) {
+                    layer.addData(collection);
+                    continue;
+                }
                 layer.addData({...collection, features: collection.features.map(feature => ({
                     ...feature,
                     geometry: {...feature.geometry,
@@ -94,8 +98,9 @@ function initializeControls() {
     map.on('moveend viewmodechange', renderWorldCopies);
 
     function fitInitialBounds() {
+        if (fitted) return;
         const bounds = allLayers.getBounds();
-        if (!fitted && bounds.isValid()) {
+        if (bounds.isValid()) {
             map.fitBounds(bounds, {maxZoom: 5});
             fitted = true;
         }
@@ -129,9 +134,12 @@ function initializeControls() {
             const shapes = createPollutantShapes({[id]: result.layers[id]}, result.grid_spacing);
             currentShapes[id] = shapes[id];
             delete renderedWorlds[id];
-            // Keep the first fit based on original coordinates, before shifted copies.
-            pollutantLayers[id].clearLayers();
-            pollutantLayers[id].addData(shapes[id]);
+            if (!initialized || !fitted) {
+                // Only the initial fit needs an intermediate, unshifted layer.
+                pollutantLayers[id].clearLayers();
+                pollutantLayers[id].addData(shapes[id]);
+                renderedWorlds[id] = '0,0';
+            }
             if (initialized) {
                 fitInitialBounds();
                 renderWorldCopies();

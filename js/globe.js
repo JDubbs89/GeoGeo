@@ -1,4 +1,5 @@
 import {globePolygonPatches} from './globe-geometry.js';
+import {createGlobeLayerQueue} from './globe-layer-queue.js';
 import {LeafletMap, Polygon, Polyline, CircleMarker, Marker, LatLng, ZoomControl} from 'leaflet';
 
 // Leaflet owns the layers and controls; WebGL Earth renders their geometry.
@@ -57,6 +58,18 @@ export function createGlobeMap(container) {
     const C = window.Cesium;
     const scene = globe.getCesiumScene();
     const visuals = new Map();
+    const polygonPatches = new WeakMap();
+    const markerClasses = [];
+    // WE exposes no public marker element. Resolve new marker elements once per
+    // batch instead of scanning all existing icons after every marker insertion.
+    function classifyMarkers() {
+        if (!markerClasses.length) return;
+        const icons = viewport.querySelectorAll('.we-pm-icon');
+        const first = icons.length - markerClasses.length;
+        markerClasses.forEach((className, index) => icons[first + index]?.parentElement.classList.add(className));
+        markerClasses.length = 0;
+    }
+    const layerQueue = createGlobeLayerQueue(add, classifyMarkers);
     globe.pauseRendering();
     const changed = () => { globe.sceneChanged = true; };
     const position = point => C.Cartesian3.fromDegrees(point.lng, point.lat, 100);
@@ -66,6 +79,7 @@ export function createGlobeMap(container) {
         return result;
     };
     function remove(layer) {
+        layerQueue.remove(layer);
         const visual = visuals.get(layer);
         if (!visual) return;
         activePopup?.removeFrom(globe);
@@ -85,9 +99,7 @@ export function createGlobeMap(container) {
                 : '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42"><path d="M15 41C12 32 2 24 2 15a13 13 0 0 1 26 0c0 9-10 17-13 26Z" fill="#0077cc" stroke="white" stroke-width="2"/></svg>';
             const marker = WE.marker([point.lat, point.lng],
                 `data:image/svg+xml,${encodeURIComponent(svg)}`, circle ? radius * 2 + 4 : 30, circle ? radius * 2 + 4 : 42).addTo(globe);
-            const icons = viewport.querySelectorAll('.we-pm-icon');
-            const markerElement = icons[icons.length - 1]?.parentElement;
-            markerElement?.classList.add(layer.options.pane === 'game-markers' ? 'globe-game-marker' : 'globe-pollutant-marker');
+            markerClasses.push(layer.options.pane === 'game-markers' ? 'globe-game-marker' : 'globe-pollutant-marker');
             const popup = layer.getPopup();
             if (popup) marker.bindPopup(popup.getContent(), {maxWidth: 420});
             const tooltip = layer.getTooltip();
@@ -125,8 +137,12 @@ export function createGlobeMap(container) {
             }
             visuals.set(layer, {dispose() {stopDrag(); layer.off('move', move); marker.removeFrom(globe);}});
         } else if (layer instanceof Polygon) {
-            const json = layer.toGeoJSON().geometry;
-            const polygons = globePolygonPatches(json);
+            const json = layer.feature?.geometry ?? layer.toGeoJSON().geometry;
+            let polygons = polygonPatches.get(json);
+            if (!polygons) {
+                polygons = globePolygonPatches(json);
+                polygonPatches.set(json, polygons);
+            }
             const hierarchy = rings => new C.PolygonHierarchy(
                 rings[0].slice(0, -1).map(([lng, lat]) => position({lng, lat})),
                 rings.slice(1).map(ring => hierarchy([ring])));
@@ -185,7 +201,13 @@ export function createGlobeMap(container) {
         }
         changed();
     }
-    map.on('layeradd', event => add(event.layer));
+    function enqueue(layer) {
+        if (map.viewMode === '3d' &&
+            (layer instanceof Marker || layer instanceof Polyline || layer instanceof CircleMarker)) {
+            layerQueue.add(layer);
+        }
+    }
+    map.on('layeradd', event => enqueue(event.layer));
     map.on('layerremove', event => remove(event.layer));
     globe.on('click', event => {
         if (map.viewMode !== '3d' || !event.latlng) return; // Clicks in space are not guesses.
@@ -232,6 +254,7 @@ export function createGlobeMap(container) {
         for (const button of viewButtons) {
             button.setAttribute('aria-pressed', String(button.textContent.toLowerCase() === mode));
         }
+        layerQueue.clear();
         for (const layer of [...visuals.keys()]) remove(layer);
         // Rebuild only the world copies appropriate to the selected projection.
         map.fire('viewmodechange', {mode});
@@ -239,7 +262,7 @@ export function createGlobeMap(container) {
             const center = map.getCenter();
             globe.handleResize();
             globe.setView([center.lat, center.lng], Math.max(1, map.getZoom()));
-            map.eachLayer(add);
+            map.eachLayer(enqueue);
             globe.resumeRendering();
         } else {
             map.invalidateSize();

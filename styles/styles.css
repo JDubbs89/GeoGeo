@@ -301,8 +301,14 @@ body {
 
 /* Compact game sidebar, including the results shown after a round. */
 .game-screen .sidebar {
+    display: flex;
+    flex-direction: column;
     min-width: 320px;
     padding: 12px;
+}
+
+.game-screen .sidebar > * {
+    flex-shrink: 0;
 }
 
 .game-screen .sidebar h2 {
@@ -388,7 +394,8 @@ body {
 .playProgress::-moz-progress-bar { background: #287d2c; border-radius: 4px; }
 
 .game-screen .game-controls {
-    margin-top: 8px;
+    margin-top: auto;
+    padding-top: 8px;
 }
 
 .game-screen .game-controls > button {
