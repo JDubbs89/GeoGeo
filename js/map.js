@@ -53,10 +53,13 @@ function initializeControls() {
         return;
     }
 
-    let updating = false;
+    const sliders = {c02: c02Slider, ch4: ch4Slider, n02: n02Slider};
+    const updating = new Set();
+    const errors = new Map();
+    let initialized = false;
     let fitted = false;
-    let currentShapes = null;
-    let renderedWorlds = '';
+    const currentShapes = {};
+    const renderedWorlds = {};
 
     // Tiles repeat every 360 degrees; GeoJSON needs its own shifted copies.
     function shiftCoordinates(coordinates, offset) {
@@ -67,15 +70,13 @@ function initializeControls() {
     }
 
     function renderWorldCopies() {
-        if (!currentShapes) return;
         const bounds = map.getBounds();
         const firstWorld = map.viewMode === '3d' ? 0 : Math.floor((bounds.getWest() + 180) / 360);
         const lastWorld = map.viewMode === '3d' ? 0 : Math.floor((bounds.getEast() + 180) / 360);
         const worlds = `${firstWorld},${lastWorld}`;
-        if (worlds === renderedWorlds) return;
-        renderedWorlds = worlds;
-
         for (const pollutant of POLLUTANTS) {
+            if (!currentShapes[pollutant.id] || renderedWorlds[pollutant.id] === worlds) continue;
+            renderedWorlds[pollutant.id] = worlds;
             const layer = pollutantLayers[pollutant.id];
             layer.clearLayers();
             for (let world = firstWorld; world <= lastWorld; world++) {
@@ -92,72 +93,76 @@ function initializeControls() {
     // Reuse the generated shapes when panning instead of querying or clustering again.
     map.on('moveend viewmodechange', renderWorldCopies);
 
-    async function update() {
-    // Percentiles select the band; its displayed range comes from real measurements.
-    for (const {id} of POLLUTANTS) {
-        bandOutputs[id].textContent = 'Loading…';
-        bandOutputs[id].setAttribute('aria-busy', 'true');
-    }
-    if (updating) return;
-    updating = true;
-    const c02Value = c02Slider.value;
-    const ch4Value = ch4Slider.value;
-    const n02Value = n02Slider.value;
-    try {
-        const result = await queryPoints(c02Value + ',' + ch4Value + ',' + n02Value);
-        // Do not show measurements from an older slider position during a drag.
-        if (c02Slider.value !== c02Value || ch4Slider.value !== ch4Value || n02Slider.value !== n02Value) return;
-        for (const {id} of POLLUTANTS) {
-            const readings = result.layers[id].map(record => record[id]).filter(Number.isFinite);
-            if (readings.length) {
-                const [min, max] = readings.reduce(([low, high], value) =>
-                    [Math.min(low, value), Math.max(high, value)], [Infinity, -Infinity]);
-                const range = min === max ? formatBandReading(min) : `${formatBandReading(min)}–${formatBandReading(max)}`;
-                bandOutputs[id].textContent = range;
-            } else {
-                bandOutputs[id].textContent = 'No readings';
-            }
-            bandOutputs[id].setAttribute('aria-busy', 'false');
-        }
-        currentShapes = null;
-        renderedWorlds = '';
-        for (const layer of Object.values(pollutantLayers)) layer.clearLayers();
-        if (!result.total) {
-            output.textContent = 'No pollutant measurements are available. Import the data.';
-            output.hidden = false;
-            return;
-        }
-        output.textContent = '';
-        output.hidden = true;
-        const shapes = createPollutantShapes(result.layers, result.grid_spacing);
-        for (const pollutant of POLLUTANTS) pollutantLayers[pollutant.id].addData(shapes[pollutant.id]);
+    function fitInitialBounds() {
         const bounds = allLayers.getBounds();
         if (!fitted && bounds.isValid()) {
             map.fitBounds(bounds, {maxZoom: 5});
             fitted = true;
         }
-        // Fit the original data first so repeated copies do not widen the initial view.
-        currentShapes = shapes;
-        renderWorldCopies();
-    } catch (error) {
-        for (const {id} of POLLUTANTS) {
-            bandOutputs[id].textContent = 'Unavailable';
-            bandOutputs[id].setAttribute('aria-busy', 'false');
-        }
-        output.textContent = `Unable to update the map: ${error.message}`;
-        output.hidden = false;
-        console.error('Unable to update the map:', error);
-    } finally {
-        updating = false;
-        // Keep drawing during a drag, then catch up to the most recent value.
-        if (c02Slider.value !== c02Value || ch4Slider.value !== ch4Value || n02Slider.value !== n02Value) update();
-    }
     }
 
-    c02Slider.addEventListener('input', update);
-    ch4Slider.addEventListener('input', update);
-    n02Slider.addEventListener('input', update);
-    update();
+    function showStatus() {
+        output.textContent = [...errors.values()].join(' ');
+        output.hidden = errors.size === 0;
+    }
+
+    async function update(id, initialResult) {
+        // Serialize and coalesce drags independently for each pollutant.
+        if (updating.has(id)) return;
+        updating.add(id);
+        const value = sliders[id].value;
+        bandOutputs[id].textContent = 'Loading…';
+        bandOutputs[id].setAttribute('aria-busy', 'true');
+        try {
+            const result = await (initialResult ?? queryPoints(
+                POLLUTANTS.map(({id}) => sliders[id].value).join(','), undefined, id));
+            if (sliders[id].value !== value) return;
+            const readings = result.layers[id].map(record => record[id]).filter(Number.isFinite);
+            if (readings.length) {
+                const [min, max] = readings.reduce(([low, high], reading) =>
+                    [Math.min(low, reading), Math.max(high, reading)], [Infinity, -Infinity]);
+                bandOutputs[id].textContent = min === max ? formatBandReading(min) :
+                    `${formatBandReading(min)}–${formatBandReading(max)}`;
+            } else {
+                bandOutputs[id].textContent = 'No readings';
+            }
+            const shapes = createPollutantShapes({[id]: result.layers[id]}, result.grid_spacing);
+            currentShapes[id] = shapes[id];
+            delete renderedWorlds[id];
+            // Keep the first fit based on original coordinates, before shifted copies.
+            pollutantLayers[id].clearLayers();
+            pollutantLayers[id].addData(shapes[id]);
+            if (initialized) {
+                fitInitialBounds();
+                renderWorldCopies();
+            }
+            errors.delete(id);
+            if (!result.total) errors.set(id, 'No pollutant measurements are available. Import the data.');
+            showStatus();
+        } catch (error) {
+            if (sliders[id].value !== value) return;
+            bandOutputs[id].textContent = 'Unavailable';
+            errors.set(id, `Unable to update ${POLLUTANTS.find(p => p.id === id).label}: ${error.message}`);
+            showStatus();
+            console.error('Unable to update the map:', error);
+        } finally {
+            updating.delete(id);
+            if (sliders[id].value !== value) {
+                update(id);
+            } else {
+                bandOutputs[id].setAttribute('aria-busy', 'false');
+            }
+        }
+    }
+
+    for (const {id} of POLLUTANTS) sliders[id].addEventListener('input', () => update(id));
+    // Share one full query on load; later requests contain only the changed layer.
+    const initialResult = queryPoints(POLLUTANTS.map(({id}) => sliders[id].value).join(','));
+    Promise.all(POLLUTANTS.map(({id}) => update(id, initialResult))).then(() => {
+        initialized = true;
+        fitInitialBounds();
+        renderWorldCopies();
+    });
 }
 
 if (document.readyState === 'loading') {

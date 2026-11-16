@@ -14,9 +14,10 @@ ROOT = Path(__file__).resolve().parent
 
 def points(request):
     try:
-        return JSONResponse(query_slider(request.query_params.get('slider', '50,50,50')))
+        return JSONResponse(query_slider(request.query_params.get('slider', '50,50,50'),
+                                         pollutant=request.query_params.get('pollutant')))
     except ValueError:
-        return JSONResponse({'error': 'Each slider must be between 0 and 100.'}, status_code=400)
+        return JSONResponse({'error': 'Each slider must be between 0 and 100; pollutant must be c02, ch4, or n02.'}, status_code=400)
     except sqlite3.Error:
         return JSONResponse({'error': 'Run venv/bin/python import_opendap.py to install the aligned database.'}, status_code=503)
 

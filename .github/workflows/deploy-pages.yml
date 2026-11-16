@@ -25,6 +25,8 @@ jobs:
           node-version: '24'
       - name: Check static data queries
         run: python -m unittest discover -s tests
+      - name: Check browser data updates
+        run: node --test tests/*.test.mjs
       - name: Build static site
         run: python scripts/build_pages.py
       - uses: actions/upload-pages-artifact@v3

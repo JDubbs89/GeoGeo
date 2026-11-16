@@ -34,6 +34,8 @@ def query_points(bands, db_path=DB_PATH):
         layers = {}
         # Identifiers come from this fixed list, never from request parameters.
         for gas in ('c02', 'ch4', 'n02'):
+            if gas not in bands:
+                continue
             rank_expression = f'100.0 * PERCENT_RANK() OVER (ORDER BY {gas})'
             if gas == 'ch4':
                 # Zero emissions dominate the grid. Rank positive emissions separately
@@ -54,15 +56,17 @@ def query_points(bands, db_path=DB_PATH):
         return layers
 
 
-def query_slider(percent, db_path=DB_PATH):
+def query_slider(percent, db_path=DB_PATH, *, pollutant=None):
     """Select a percentile band around each pollutant's slider independently."""
+    if pollutant is not None and pollutant not in ('c02', 'ch4', 'n02'):
+        raise ValueError('Unknown pollutant')
     values = [float(value) for value in str(percent).split(',')]
     if len(values) != 3 or any(not math.isfinite(value) or not 0 <= value <= 100 for value in values):
         raise ValueError('Each slider must be between 0 and 100')
     slider_values = dict(zip(('c02', 'ch4', 'n02'), values))
     bands = {gas: {'lower': max(0, value - BAND_HALF_WIDTH),
                    'upper': min(100, value + BAND_HALF_WIDTH)}
-             for gas, value in slider_values.items()}
+             for gas, value in slider_values.items() if pollutant is None or gas == pollutant}
     with closing(sqlite3.connect(Path(db_path).resolve().as_uri() + '?mode=ro', uri=True)) as db:
         total = db.execute("""SELECT COUNT(*) FROM datapoints
             WHERE c02 IS NOT NULL OR ch4 IS NOT NULL OR n02 IS NOT NULL""").fetchone()[0]

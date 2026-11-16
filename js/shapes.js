@@ -61,7 +61,7 @@ function createClusterShapes(records, gridSpacing) {
 }
 
 function createPollutantShapes(recordsByPollutant, gridSpacing) {
-    return Object.fromEntries(POLLUTANTS.map(pollutant => {
+    return Object.fromEntries(POLLUTANTS.filter(({id}) => Object.hasOwn(recordsByPollutant, id)).map(pollutant => {
         const groups = Object.fromEntries(SEVERITY_LEVELS.map(level => [level.id, []]));
         for (const record of recordsByPollutant[pollutant.id]) {
             groups[getSeverity(record[`${pollutant.id}_rank`]).id].push(record);
