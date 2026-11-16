@@ -6,6 +6,7 @@
     "concaveman": "^2.0.0",
     "density-clustering": "1.3.0",
     "jsdap": "8.1.0",
+    "polygon-clipping": "^0.15.7",
     "tone": "^15.1.22"
   }
 }

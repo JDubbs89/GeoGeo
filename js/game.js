@@ -8,7 +8,6 @@ const MAX_SLIDER_SCORE = 500;
 const MAX_LOCATION_SCORE = 500;
 const LOCATION_SCORE_SCALE_KM = 4000;
 let currentGoals = null;
-let roundFinished = false;
 let selectedLocation = null;
 let guessMarker = null;
 let resultReveal = null;
@@ -96,6 +95,7 @@ async function startGame() {
     cooldownTimer = null;
     goalAvailableAt = 0;
     progress.value = 0;
+    sliderProgress.value = 0;
     const results = document.getElementById('game-results');
     results.hidden = true;
     for (const value of results.querySelectorAll('[data-result-value]')) value.textContent = '';
@@ -128,12 +128,11 @@ async function submitGuess(userSliders, userLocation,
     clearInterval(cooldownTimer);
     cooldownTimer = null;
     updateSoundButtons();
-    roundFinished = true;
     heading.textContent = 'Round Over!';
     status.textContent = '';
     status.hidden = true;
     startButton.hidden = false;
-    submitButton.textContent = 'Quit';
+    submitButton.hidden = true;
     submitButton.disabled = false;
     
     return results;
@@ -146,11 +145,11 @@ function revealAnswer(userLocation, goalSliders, goalLocation) {
     const target = [goalLocation.lat,
         goalLocation.lon + 360 * Math.round((guess.lng - goalLocation.lon) / 360)];
     const line = new Polyline([guess, target], {
-        color: '#18351c', weight: 3, dashArray: '8 6', interactive: false,
+        pane: 'game-path', color: '#18351c', weight: 3, dashArray: '8 6', interactive: false,
         className: 'guess-result-line',
     });
     const targetMarker = new CircleMarker(target, {
-        radius: 9, color: '#18351c', fillColor: '#ffcc33', fillOpacity: 1,
+        pane: 'game-markers', radius: 9, color: '#18351c', fillColor: '#ffcc33', fillOpacity: 1,
         interactive: false, className: 'goal-location-marker',
     }).bindTooltip('Target', {permanent: true, direction: 'top'});
     resultReveal = new FeatureGroup([line, targetMarker]).addTo(map);
@@ -209,6 +208,8 @@ function selectLocation(latlng) {
     if (guessMarker) guessMarker.setLatLng(latlng);
     else {
         guessMarker = new Marker(latlng, {
+            pane: 'game-markers',
+            zIndexOffset: 1000,
             draggable: true,
             autoPan: true,
             title: 'Drag to move your guess',
@@ -236,7 +237,12 @@ const gameTitle = heading.textContent;
 const goalButton = document.getElementById('playGoalButton');
 const sliderButton = document.getElementById('play_button');
 const progress = document.getElementById('playProgress');
+const sliderProgress = document.getElementById('sliderProgress');
 const audioStatus = document.getElementById('audio-status');
+// Give both audio bars the same length, based on the sidebar's available width.
+new ResizeObserver(([entry]) => {
+    document.body.style.setProperty('--sound-progress-width', `${Math.max(0, entry.contentRect.width / 2 - 8)}px`);
+}).observe(document.querySelector('.game-controls'));
 
 // Show the cooldown, and prevent overlapping goal and slider sounds.
 function updateSoundButtons() {
@@ -259,7 +265,8 @@ function updateSoundButtons() {
 
 // The bar measures audio playback, independently of the goal cooldown.
 function updateAudioProgress() {
-    progress.value = Math.min(SOUND_DURATION_MS, Date.now() - playbackStartedAt);
+    const activeProgress = playingGoal ? progress : sliderProgress;
+    activeProgress.value = Math.min(SOUND_DURATION_MS, Date.now() - playbackStartedAt);
     updateSoundButtons();
 }
 
@@ -269,7 +276,8 @@ async function playRoundSound(isGoal) {
     if (!currentGoals || soundPlaying || (isGoal && Date.now() < goalAvailableAt)) return;
     soundPlaying = true;
     playingGoal = isGoal;
-    progress.value = 0;
+    const activeProgress = isGoal ? progress : sliderProgress;
+    activeProgress.value = 0;
     startButton.disabled = true;
     submitButton.disabled = true;
     audioStatus.hidden = true;
@@ -290,7 +298,7 @@ async function playRoundSound(isGoal) {
             updateSoundButtons();
         }
         await new Promise(resolve => setTimeout(resolve, SOUND_DURATION_MS));
-        progress.value = SOUND_DURATION_MS;
+        activeProgress.value = SOUND_DURATION_MS;
     } catch (error) {
         audioStatus.textContent = `Unable to play sound: ${error.message}. Please try again.`;
         audioStatus.hidden = false;
@@ -308,10 +316,10 @@ async function playRoundSound(isGoal) {
 }
 
 async function beginRound() {
-    roundFinished = false;
     heading.textContent = gameTitle;
     status.hidden = false;
     startButton.hidden = true;
+    submitButton.hidden = false;
     submitButton.textContent = 'GeoGeoGeo!';
     startButton.disabled = true;
     submitButton.disabled = true;
@@ -321,9 +329,8 @@ async function beginRound() {
     status.textContent = 'Loading a new round…';
     try {
         await startGame();
-        startButton.textContent = 'Replay';
         submitButton.disabled = false;
-        status.textContent = 'Press ▶ above the map to hear the goal. Adjust the sliders and place your pin.';
+        status.textContent = 'Press ▶ in the map controls to hear the goal. Adjust the sliders and place your pin.';
     } catch (error) {
         status.textContent = error.message;
         submitButton.textContent = 'Try again';
@@ -339,10 +346,6 @@ goalButton.addEventListener('click', () => playRoundSound(true));
 sliderButton.addEventListener('click', () => playRoundSound(false));
 
 submitButton.addEventListener('click', async () => {
-    if (roundFinished) {
-        window.location.href = 'play.html';
-        return;
-    }
     if (!currentGoals) {
         await beginRound();
         return;

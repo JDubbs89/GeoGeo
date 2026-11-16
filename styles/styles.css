@@ -199,14 +199,15 @@ body {
 }
 
 .playSound {
-    position: absolute;
-    top: 12px;
-    left: 48px;
+    box-sizing: border-box;
     width: max-content;
+    max-width: 100%;
     height: max-content;
     padding: 8px;
-    background-color: rgba(255, 255, 255, 0.8);
-    border-radius: 8px;
+    background-color: #ffffdef2;
+    border: 1px solid #c9ddbc;
+    border-radius: 12px;
+    box-shadow: 0 3px 12px #18351c26;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -261,7 +262,8 @@ body {
 
 .game-controls {
     display: flex;
-    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     gap: 8px;
     margin-top: 16px;
     width: 100%;
@@ -352,20 +354,68 @@ body {
     gap: 3px;
 }
 
-.game-screen #play_button {
-    min-height: 32px;
-    margin-top: 6px;
-    padding: 4px 12px;
-    font-size: 1.125rem;
+.sidebar-sound {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: max-content;
+    max-width: 100%;
+    min-width: 0;
 }
+
+.game-screen .playButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    margin: 0;
+    padding: 0;
+    border-radius: 8px;
+    font: 600 20px/1 sans-serif;
+}
+
+.sidebar-sound .playProgress, .playSound .playProgress {
+    flex: 0 1 auto;
+    width: var(--sound-progress-width, 140px);
+    min-width: 0;
+}
+.playProgress { accent-color: #287d2c; vertical-align: middle; }
+.playProgress::-webkit-progress-bar { background: #c9ddbc; border-radius: 4px; }
+.playProgress::-webkit-progress-value { background: #287d2c; border-radius: 4px; }
+.playProgress::-moz-progress-bar { background: #287d2c; border-radius: 4px; }
 
 .game-screen .game-controls {
     margin-top: 8px;
 }
 
-.game-screen .game-controls button {
+.game-screen .game-controls > button {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    padding: 8px;
+    height: 44px;
     margin: 0;
 }
+
+.main-menu-button {
+    flex: 0 0 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    border-radius: 4px;
+    background: #e2ebd5;
+    color: #18351c;
+    font: 14px/1.2 sans-serif;
+    text-decoration: none;
+}
+
+.main-menu-button:focus-visible { outline: 2px solid #18351c; outline-offset: 2px; }
 
 @media (max-height: 650px) {
     .game-screen .sidebar {
@@ -387,3 +437,59 @@ body {
 .globe-zoom { position: absolute; top: 10px; left: 10px; display: grid; z-index: 500; }
 .globe-zoom button { width: 30px; height: 30px; border: 1px solid #ccc; background: white; font-size: 20px; cursor: pointer; }
 .globe-notice { position: absolute; bottom: 24px; left: 12px; padding: 8px; background: white; z-index: 500; }
+
+.map[data-view-mode="2d"] .globe-model { visibility: visible; pointer-events: auto; }
+.map[data-view-mode="2d"] .globe-viewport,
+.map[data-view-mode="2d"] .globe-zoom,
+.map[data-view-mode="3d"] .leaflet-control-zoom { visibility: hidden; pointer-events: none; }
+.globe-game-marker { z-index: 200 !important; }
+.globe-pollutant-marker { z-index: 100 !important; }
+
+.map-view-dock {
+    position: absolute;
+    bottom: 24px;
+    left: 16px;
+    z-index: 1000;
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #c9ddbc;
+    border-radius: 12px;
+    background: #ffffdef2;
+    box-shadow: 0 3px 12px #18351c26;
+}
+
+.map-view-dock button {
+    min-width: 48px;
+    min-height: 36px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #18351c;
+    font: 600 14px/1.2 sans-serif;
+    cursor: pointer;
+}
+
+.map-view-dock button[aria-pressed="true"] { background: #287d2c; color: white; }
+.map-view-dock button:hover:not([aria-pressed="true"]):not(:disabled) { background: #e2ebd5; }
+.map-view-dock button:focus-visible { outline: 2px solid #18351c; outline-offset: 2px; }
+.map-view-dock button:disabled { opacity: 0.45; cursor: default; }
+.map[data-view-mode="2d"] .globe-notice { bottom: 84px; }
+.globe-path-layer { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 150; pointer-events: none; }
+
+.map-bottom-controls {
+    position: absolute;
+    bottom: 24px;
+    left: 16px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    width: max-content;
+    max-width: calc(100% - 32px);
+}
+
+.map-bottom-controls .map-view-dock { position: static; }
+.game-screen .map[data-view-mode="2d"] .globe-notice { bottom: 152px; }

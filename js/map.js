@@ -10,7 +10,7 @@ const formatBandReading = value => value.toExponential(2);
 const guessing = document.getElementById('map').hasAttribute('data-guess-map');
 
 export const {map, globe} = createGlobeMap(document.getElementById('map'));
-if (!globe) new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+new TileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 const pollutantLayers = Object.fromEntries(POLLUTANTS.map((pollutant, index) => [pollutant.id, new GeoJSON(null, {
@@ -69,8 +69,8 @@ function initializeControls() {
     function renderWorldCopies() {
         if (!currentShapes) return;
         const bounds = map.getBounds();
-        const firstWorld = globe ? 0 : Math.floor((bounds.getWest() + 180) / 360);
-        const lastWorld = globe ? 0 : Math.floor((bounds.getEast() + 180) / 360);
+        const firstWorld = map.viewMode === '3d' ? 0 : Math.floor((bounds.getWest() + 180) / 360);
+        const lastWorld = map.viewMode === '3d' ? 0 : Math.floor((bounds.getEast() + 180) / 360);
         const worlds = `${firstWorld},${lastWorld}`;
         if (worlds === renderedWorlds) return;
         renderedWorlds = worlds;
@@ -90,7 +90,7 @@ function initializeControls() {
     }
 
     // Reuse the generated shapes when panning instead of querying or clustering again.
-    map.on('moveend', renderWorldCopies);
+    map.on('moveend viewmodechange', renderWorldCopies);
 
     async function update() {
     // Percentiles select the band; its displayed range comes from real measurements.

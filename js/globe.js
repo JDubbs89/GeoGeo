@@ -1,3 +1,4 @@
+import {globePolygonPatches} from './globe-geometry.js';
 import {LeafletMap, Polygon, Polyline, CircleMarker, Marker, LatLng, ZoomControl} from 'leaflet';
 
 // Leaflet owns the layers and controls; WebGL Earth renders their geometry.
@@ -7,13 +8,41 @@ export function createGlobeMap(container) {
     const viewport = document.createElement('div');
     viewport.className = 'globe-viewport';
     container.append(model, viewport);
+    container.dataset.viewMode = '2d';
     const map = new LeafletMap(model, {zoomControl: false}).setView([20, 0], 2);
+    map.viewMode = '2d';
+    map.createPane('game-path').style.zIndex = 450;
+    map.createPane('game-markers').style.zIndex = 650;
+    new ZoomControl().addTo(map);
+    const dock = document.createElement('div');
+    dock.className = 'map-view-dock';
+    dock.setAttribute('role', 'group');
+    dock.setAttribute('aria-label', 'Map view');
+    const viewButtons = ['2d', '3d'].map(mode => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = mode.toUpperCase();
+        button.setAttribute('aria-label', `${mode.toUpperCase()} map`);
+        button.setAttribute('aria-pressed', String(mode === '2d'));
+        dock.append(button);
+        return button;
+    });
+    const soundControls = container.closest('.left-area')?.querySelector('.playSound');
+    if (soundControls) {
+        const bottomControls = document.createElement('div');
+        bottomControls.className = 'map-bottom-controls';
+        bottomControls.append(dock, soundControls);
+        container.append(bottomControls);
+    } else {
+        container.append(dock);
+    }
     const probe = document.createElement('canvas');
     const supported = probe.getContext('webgl') || probe.getContext('experimental-webgl');
     supported?.getExtension('WEBGL_lose_context')?.loseContext();
     if (!window.WE || !supported) {
         model.classList.add('globe-fallback');
-        new ZoomControl().addTo(map);
+        viewButtons[1].disabled = true;
+        viewButtons[1].title = '3D is unavailable in this browser';
         const notice = document.createElement('p');
         notice.className = 'globe-notice';
         notice.textContent = '3D globe unavailable. Showing the flat map.';
@@ -28,6 +57,7 @@ export function createGlobeMap(container) {
     const C = window.Cesium;
     const scene = globe.getCesiumScene();
     const visuals = new Map();
+    globe.pauseRendering();
     const changed = () => { globe.sceneChanged = true; };
     const position = point => C.Cartesian3.fromDegrees(point.lng, point.lat, 100);
     const color = (value, alpha = 1) => {
@@ -45,7 +75,7 @@ export function createGlobeMap(container) {
         changed();
     }
     function add(layer) {
-        if (visuals.has(layer)) return;
+        if (map.viewMode !== '3d' || visuals.has(layer)) return;
         if (layer instanceof CircleMarker || layer instanceof Marker) {
             const point = layer.getLatLng();
             const circle = layer instanceof CircleMarker;
@@ -55,6 +85,9 @@ export function createGlobeMap(container) {
                 : '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="42"><path d="M15 41C12 32 2 24 2 15a13 13 0 0 1 26 0c0 9-10 17-13 26Z" fill="#0077cc" stroke="white" stroke-width="2"/></svg>';
             const marker = WE.marker([point.lat, point.lng],
                 `data:image/svg+xml,${encodeURIComponent(svg)}`, circle ? radius * 2 + 4 : 30, circle ? radius * 2 + 4 : 42).addTo(globe);
+            const icons = viewport.querySelectorAll('.we-pm-icon');
+            const markerElement = icons[icons.length - 1]?.parentElement;
+            markerElement?.classList.add(layer.options.pane === 'game-markers' ? 'globe-game-marker' : 'globe-pollutant-marker');
             const popup = layer.getPopup();
             if (popup) marker.bindPopup(popup.getContent(), {maxWidth: 420});
             const tooltip = layer.getTooltip();
@@ -93,23 +126,31 @@ export function createGlobeMap(container) {
             visuals.set(layer, {dispose() {stopDrag(); layer.off('move', move); marker.removeFrom(globe);}});
         } else if (layer instanceof Polygon) {
             const json = layer.toGeoJSON().geometry;
-            const polygons = json.type === 'MultiPolygon' ? json.coordinates : [json.coordinates];
+            const polygons = globePolygonPatches(json);
             const hierarchy = rings => new C.PolygonHierarchy(
                 rings[0].slice(0, -1).map(([lng, lat]) => position({lng, lat})),
                 rings.slice(1).map(ring => hierarchy([ring])));
-            const primitives = polygons.map(rings => scene.primitives.add(new C.Primitive({
-                geometryInstances: new C.GeometryInstance({
+            const primitive = scene.primitives.add(new C.Primitive({
+                geometryInstances: polygons.map(rings => new C.GeometryInstance({
                     id: layer,
                     geometry: new C.PolygonGeometry({polygonHierarchy: hierarchy(rings), height: 100,
                         vertexFormat: C.PerInstanceColorAppearance.VERTEX_FORMAT}),
                     attributes: {color: C.ColorGeometryInstanceAttribute.fromColor(color(layer.options.fillColor || layer.options.color, layer.options.fillOpacity))},
-                }),
+                })),
                 appearance: new C.PerInstanceColorAppearance({closed: true, translucent: true, flat: true}),
                 asynchronous: false,
-            })));
-            visuals.set(layer, {dispose() {for (const primitive of primitives) scene.primitives.remove(primitive);}});
+            }));
+            visuals.set(layer, {dispose() {scene.primitives.remove(primitive);}});
         } else if (layer instanceof Polyline) {
-            const lines = scene.primitives.add(new C.PolylineCollection());
+            const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.classList.add('globe-path-layer');
+            const path = document.createElementNS(svg.namespaceURI, 'path');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', layer.options.color);
+            path.setAttribute('stroke-width', layer.options.weight || 3);
+            if (layer.options.dashArray) path.setAttribute('stroke-dasharray', layer.options.dashArray);
+            svg.append(path);
+            viewport.append(svg);
             const points = layer.getLatLngs();
             const positions = [];
             for (let i = 1; i < points.length; i++) {
@@ -123,16 +164,31 @@ export function createGlobeMap(container) {
                     positions.push(C.Ellipsoid.WGS84.cartographicToCartesian(point));
                 }
             }
-            if (positions.length > 1) lines.add({positions, width: layer.options.weight || 3,
-                material: C.Material.fromType('Color', {color: color(layer.options.color)})});
-            visuals.set(layer, {dispose() {scene.primitives.remove(lines);}});
+            // Draw above pollutant DOM markers, while clipping the far side of Earth.
+            const updatePath = () => {
+                const occluder = new C.EllipsoidalOccluder(C.Ellipsoid.WGS84, scene.camera.positionWC);
+                let drawing = false;
+                const commands = [];
+                for (const point of positions) {
+                    const pixel = C.SceneTransforms.wgs84ToWindowCoordinates(scene, point);
+                    if (!pixel || !occluder.isPointVisible(point)) {
+                        drawing = false;
+                        continue;
+                    }
+                    commands.push(`${drawing ? 'L' : 'M'}${pixel.x},${pixel.y}`);
+                    drawing = true;
+                }
+                path.setAttribute('d', commands.join(' '));
+            };
+            const stopUpdating = scene.postRender.addEventListener(updatePath);
+            visuals.set(layer, {dispose() {stopUpdating(); svg.remove();}});
         }
         changed();
     }
     map.on('layeradd', event => add(event.layer));
     map.on('layerremove', event => remove(event.layer));
     globe.on('click', event => {
-        if (!event.latlng) return; // Clicks in space are not guesses.
+        if (map.viewMode !== '3d' || !event.latlng) return; // Clicks in space are not guesses.
         map.fire('click', {latlng: new LatLng(event.latitude, event.longitude)});
         const hit = scene.pick(new C.Cartesian2(event.offsetX, event.offsetY));
         const layer = hit?.id;
@@ -149,7 +205,7 @@ export function createGlobeMap(container) {
         fitBounds(bounds, options);
         const center = map.getCenter();
         // Leaflet computes a padded fit and maxZoom; use the same camera target.
-        globe.setView([center.lat, center.lng], Math.max(1, map.getZoom()));
+        if (map.viewMode === '3d') globe.setView([center.lat, center.lng], Math.max(1, map.getZoom()));
         changed();
         return map;
     };
@@ -164,6 +220,34 @@ export function createGlobeMap(container) {
         zoom.append(button);
     }
     container.append(zoom);
+    function setViewMode(mode) {
+        if (mode === map.viewMode) return;
+        if (mode === '2d') {
+            const [lat, lng] = globe.getPosition();
+            map.setView([lat, lng], Math.round(globe.getZoom()));
+            globe.pauseRendering();
+        }
+        map.viewMode = mode;
+        container.dataset.viewMode = mode;
+        for (const button of viewButtons) {
+            button.setAttribute('aria-pressed', String(button.textContent.toLowerCase() === mode));
+        }
+        for (const layer of [...visuals.keys()]) remove(layer);
+        // Rebuild only the world copies appropriate to the selected projection.
+        map.fire('viewmodechange', {mode});
+        if (mode === '3d') {
+            const center = map.getCenter();
+            globe.handleResize();
+            globe.setView([center.lat, center.lng], Math.max(1, map.getZoom()));
+            map.eachLayer(add);
+            globe.resumeRendering();
+        } else {
+            map.invalidateSize();
+        }
+    }
+    viewButtons.forEach((button, index) => {
+        button.addEventListener('click', () => setViewMode(index === 0 ? '2d' : '3d'));
+    });
     new ResizeObserver(() => {map.invalidateSize(); globe.handleResize();}).observe(container);
     return {map, globe};
 }
